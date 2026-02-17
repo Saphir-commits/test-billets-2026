@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/c/laragon/bin/composer/composer require symfony/security-csrf)",
+      "Bash(composer require:*)"
+    ]
+  }
+}

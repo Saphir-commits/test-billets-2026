@@ -1,0 +1,324 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Migration CLI Script
+ *
+ * @since 2025
+ * @author Samuelle Langlois
+ */
+
+/**
+ * Variables
+ */
+$env_path = __DIR__ . '/../.env'; // Path to .env file
+
+/**
+ * Load environment variables
+ */
+if ( ! file_exists( $env_path ) )
+{
+    echo ".env file not found!\n";
+    exit( 1 );
+}
+
+$env_lines = file( $env_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+foreach ( $env_lines as $line )
+{
+    if ( strpos( trim( $line ), '#' ) === 0 )
+        continue;
+        
+    list( $name, $value ) = explode( '=', $line, 2 );
+    $_ENV[trim( $name )] = trim( $value );
+}
+
+/**
+ * Database connection
+ */
+try
+{
+    $dsn = sprintf(
+        'mysql:host=%s;port=%s;charset=%s',
+        $_ENV['DB_HOST'],
+        $_ENV['DB_PORT'],
+        $_ENV['DB_CHARSET']
+    );
+    
+    $pdo = new PDO( $dsn, $_ENV['DB_USER'], $_ENV['DB_PASSWORD'] );
+    $pdo->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
+}
+catch ( PDOException $e )
+{
+    echo "Database connection failed: " . $e->getMessage() . "\n";
+    exit( 1 );
+}
+
+/**
+ * main() : Entry point for migration CLI
+ *
+ * @since 2025
+ * @author Samuelle Langlois
+ *
+ * @param PDO $pdo Database connection
+ * 
+ * @return void
+ */
+function main( PDO $pdo ) : void
+{
+    /**
+     * Variables
+     */
+    global $argv;
+    $action = $argv[1] ?? 'up'; // Action to perform (up/down/fresh)
+    $db_name = $_ENV['DB_NAME'];
+    
+    echo "Running migrations...\n\n";
+    
+    /**
+     * Execute migration based on action
+     */
+    try
+    {
+        switch ( $action )
+        {
+            case 'up':
+                migrate_up( $pdo, $db_name );
+                echo "Migrations completed successfully!\n";
+                break;
+                
+            case 'down':
+                migrate_down( $pdo, $db_name );
+                echo "Migrations rolled back successfully!\n";
+                break;
+                
+            case 'fresh':
+                migrate_down( $pdo, $db_name );
+                migrate_up( $pdo, $db_name );
+                echo "Database refreshed successfully!\n";
+                break;
+                
+            default:
+                echo "Invalid action. Use: up, down, or fresh\n";
+                exit( 1 );
+        }
+    }
+    catch ( Exception $e )
+    {
+        echo "Migration failed: " . $e->getMessage() . "\n";
+        exit( 1 );
+    }
+}
+
+/**
+ * migrate_up() : Create database and tables
+ *
+ * @since 2025
+ * @author Samuelle Langlois
+ *
+ * @param PDO $pdo Database connection
+ * @param string $db_name Database name
+ * 
+ * @return void
+ */
+function migrate_up( PDO $pdo, string $db_name ) : void
+{
+    echo "Creating database...\n";
+    
+    /**
+     * Create database
+     */
+    $pdo->exec( "CREATE DATABASE IF NOT EXISTS `{$db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" );
+    $pdo->exec( "USE `{$db_name}`" );
+    
+    echo "Creating tables...\n";
+    
+    /**
+     * Create roles table
+     */
+    $pdo->exec( "
+        CREATE TABLE IF NOT EXISTS `roles` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `name` VARCHAR(255) NOT NULL,
+            `created_at` TIMESTAMP NULL DEFAULT NULL,
+            `edited_at` TIMESTAMP NULL DEFAULT NULL,
+            PRIMARY KEY (`id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    " );
+    
+    /**
+     * Create users table
+     */
+    $pdo->exec( "
+        CREATE TABLE IF NOT EXISTS `users` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `name` VARCHAR(255) NOT NULL,
+            `email` VARCHAR(255) NOT NULL,
+            `password` TEXT NOT NULL,
+            `role_id` INT UNSIGNED NOT NULL,
+            `created_at` TIMESTAMP NULL DEFAULT NULL,
+            `edited_at` TIMESTAMP NULL DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `users_email_unique` (`email`),
+            KEY `users_role_id_foreign` (`role_id`),
+            CONSTRAINT `users_role_id_foreign` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    " );
+    
+    /**
+     * Create products_types table
+     */
+    $pdo->exec( "
+        CREATE TABLE IF NOT EXISTS `products_types` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `name` VARCHAR(255) NOT NULL,
+            `created_at` TIMESTAMP NULL DEFAULT NULL,
+            `edited_at` TIMESTAMP NULL DEFAULT NULL,
+            PRIMARY KEY (`id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    " );
+    
+    /**
+     * Create products_pricing_options table
+     */
+    $pdo->exec( "
+        CREATE TABLE IF NOT EXISTS `products_pricing_options` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `name` VARCHAR(255) NOT NULL,
+            `nb_days` INT UNSIGNED NOT NULL,
+            `created_at` TIMESTAMP NULL DEFAULT NULL,
+            `edited_at` TIMESTAMP NULL DEFAULT NULL,
+            PRIMARY KEY (`id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    " );
+    
+    /**
+     * Create products table
+     */
+    $pdo->exec( "
+        CREATE TABLE IF NOT EXISTS `products` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `product_pricing_option_id` INT UNSIGNED NOT NULL,
+            `product_type_id` INT UNSIGNED NOT NULL,
+            `price` FLOAT NOT NULL,
+            `created_at` TIMESTAMP NULL DEFAULT NULL,
+            `edited_at` TIMESTAMP NULL DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            KEY `products_product_pricing_option_id_foreign` (`product_pricing_option_id`),
+            KEY `products_product_type_id_foreign` (`product_type_id`),
+            CONSTRAINT `products_product_pricing_option_id_foreign` FOREIGN KEY (`product_pricing_option_id`) REFERENCES `products_pricing_options` (`id`) ON DELETE CASCADE,
+            CONSTRAINT `products_product_type_id_foreign` FOREIGN KEY (`product_type_id`) REFERENCES `products_types` (`id`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    " );
+    
+    /**
+     * Create subscriptions table
+     */
+    $pdo->exec( "
+        CREATE TABLE IF NOT EXISTS `subscriptions` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `price` FLOAT NOT NULL,
+            `user_id` INT UNSIGNED NOT NULL,
+            `product_id` INT UNSIGNED NOT NULL,
+            `expired_at` TIMESTAMP NOT NULL,
+            `canceled_at` TIMESTAMP NULL DEFAULT NULL,
+            `created_at` TIMESTAMP NULL DEFAULT NULL,
+            `edited_at` TIMESTAMP NULL DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            KEY `subscriptions_user_id_foreign` (`user_id`),
+            KEY `subscriptions_product_id_foreign` (`product_id`),
+            CONSTRAINT `subscriptions_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+            CONSTRAINT `subscriptions_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    " );
+    
+    echo "Seeding data...\n";
+    
+    /**
+     * Seed roles
+     */
+    $pdo->exec( "
+        INSERT INTO `roles` (`id`, `name`, `created_at`, `edited_at`) VALUES
+        (1, 'admin', NOW(), NOW()),
+        (2, 'user', NOW(), NOW())
+    " );
+    
+    /**
+     * Seed admin user
+     * Password: test-billet-2026 (MD5 hashed)
+     */
+    $password_hash = md5( 'test-billet-2026' ); // MD5 hash
+    $pdo->exec( "
+        INSERT INTO `users` (`name`, `email`, `password`, `role_id`, `created_at`, `edited_at`) VALUES
+        ('Admin', 'admin@billets.ca', '{$password_hash}', 1, NOW(), NOW())
+    " );
+    
+    /**
+     * Seed products types
+     */
+    $pdo->exec( "
+        INSERT INTO `products_types` (`name`, `created_at`, `edited_at`) VALUES
+        ('Software Tool', NOW(), NOW()),
+        ('Content Bundle', NOW(), NOW()),
+        ('Premium Access', NOW(), NOW())
+    " );
+    
+    /**
+     * Seed pricing options
+     */
+    $pdo->exec( "
+        INSERT INTO `products_pricing_options` (`name`, `nb_days`, `created_at`, `edited_at`) VALUES
+        ('Monthly', 30, NOW(), NOW()),
+        ('Yearly', 365, NOW(), NOW()),
+        ('Quarterly', 90, NOW(), NOW())
+    " );
+    
+    /**
+     * Seed products
+     */
+    $pdo->exec( "
+        INSERT INTO `products` (`product_pricing_option_id`, `product_type_id`, `price`, `created_at`, `edited_at`) VALUES
+        (1, 1, 9.99, NOW(), NOW()),
+        (2, 1, 99.99, NOW(), NOW()),
+        (1, 2, 14.99, NOW(), NOW()),
+        (2, 2, 149.99, NOW(), NOW()),
+        (3, 3, 39.99, NOW(), NOW())
+    " );
+    
+    echo "Database seeded!\n";
+    
+    /**
+     * Success
+     */
+    return;
+}
+
+/**
+ * migrate_down() : Drop database
+ *
+ * @since 2025
+ * @author Samuelle Langlois
+ *
+ * @param PDO $pdo Database connection
+ * @param string $db_name Database name
+ * 
+ * @return void
+ */
+function migrate_down( PDO $pdo, string $db_name ) : void
+{
+    echo "Dropping database...\n";
+    
+    /**
+     * Drop database
+     */
+    $pdo->exec( "DROP DATABASE IF EXISTS `{$db_name}`" );
+    
+    /**
+     * Success
+     */
+    return;
+}
+
+/**
+ * Run the script
+ */
+main( $pdo );
