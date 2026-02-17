@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Symfony\Component\PasswordHasher\Hasher\NativePasswordHasher;
+
 /**
  * User : Model for the users table
  *
@@ -107,7 +109,7 @@ class User extends Model
          * Hash password before insert
          */
         if ( isset( $data['password'] ) )
-            $data['password'] = md5( $data['password'] );
+            $data['password'] = ( new NativePasswordHasher() )->hash( $data['password'] );
 
         /**
          * Success
@@ -133,7 +135,7 @@ class User extends Model
          */
         if ( isset( $data['password'] ) && ! empty( $data['password'] ) )
         {
-            $data['password'] = md5( $data['password'] );
+            $data['password'] = ( new NativePasswordHasher() )->hash( $data['password'] );
         }
         else
         {

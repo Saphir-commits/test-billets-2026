@@ -261,6 +261,11 @@ switch ( true )
         $product_controller->delete( (int) $matches[1] );
         break;
 
+    case preg_match( '#^/products/(\d+)/pricing$#', $request_uri, $matches ) === 1 && $request_method === 'GET':
+        Auth::require_auth();
+        $subscription_controller->product_pricing( (int) $matches[1] );
+        break;
+
     /**
      * Subscriptions routes
      */

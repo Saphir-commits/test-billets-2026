@@ -8,6 +8,10 @@
  * @author Samuelle Langlois
  */
 
+use Symfony\Component\PasswordHasher\Hasher\NativePasswordHasher;
+
+require __DIR__ . '/../vendor/autoload.php';
+
 /**
  * Variables
  */
@@ -244,12 +248,14 @@ function migrate_up( PDO $pdo, string $db_name ) : void
     
     /**
      * Seed admin user
-     * Password: test-billet-2026 (MD5 hashed)
+     * Password: test-billet-2026 (bcrypt hashed)
      */
-    $password_hash = md5( 'test-billet-2026' ); // MD5 hash
+    $password_hash_admin = ( new NativePasswordHasher() )->hash( 'test-billet-2026' ); // bcrypt hash via Symfony
+    $password_hash_user = ( new NativePasswordHasher() )->hash( 'user-billet-2026' ); // bcrypt hash via Symfony
     $pdo->exec( "
         INSERT INTO `users` (`name`, `email`, `password`, `role_id`, `created_at`, `edited_at`) VALUES
-        ('Admin', 'admin@billets.ca', '{$password_hash}', 1, NOW(), NOW())
+        ('Admin', 'admin@billets.ca', '{$password_hash_admin}', 1, NOW(), NOW()),
+        ('User', 'user@billets.ca', '{$password_hash_user}', 2, NOW(), NOW())
     " );
     
     /**

@@ -38,17 +38,44 @@
 
                 <div class="form-group">
                     <label for="expired_at">Expired At</label>
-                    <input type="datetime-local" id="expired_at" name="expired_at" value="<?php echo htmlspecialchars( str_replace( ' ', 'T', $subscription['expired_at'] ?? '' ) ); ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="canceled_at">Canceled At (optional)</label>
-                    <input type="datetime-local" id="canceled_at" name="canceled_at" value="<?php echo htmlspecialchars( str_replace( ' ', 'T', $subscription['canceled_at'] ?? '' ) ); ?>">
+                    <input type="datetime-local" id="expired_at" name="expired_at" value="<?php echo htmlspecialchars( substr( str_replace( ' ', 'T', $subscription['expired_at'] ?? '' ), 0, 16 ) ); ?>" required>
                 </div>
 
                 <input type="hidden" name="_csrf_token" value="<?php echo htmlspecialchars( \App\Helpers\Csrf::get_token( 'subscriptions' ) ); ?>">
                 <button type="submit" class="btn btn-success">Update</button>
             </form>
         </div>
+
+<script>
+    document.getElementById( 'product_id' ).addEventListener( 'change', function ()
+    {
+        var product_id = this.value;
+
+        if ( ! product_id )
+            return;
+
+        fetch( '/products/' + product_id + '/pricing' )
+            .then( function ( response ) { return response.json(); } )
+            .then( function ( data )
+            {
+                if ( data.error )
+                    return;
+
+                var now = new Date();
+                now.setDate( now.getDate() + data.nb_days );
+
+                var formatted =
+                    now.getFullYear() + '-' +
+                    String( now.getMonth() + 1 ).padStart( 2, '0' ) + '-' +
+                    String( now.getDate() ).padStart( 2, '0' ) + 'T' +
+                    String( now.getHours() ).padStart( 2, '0' ) + ':' +
+                    String( now.getMinutes() ).padStart( 2, '0' );
+
+                document.getElementById( 'expired_at' ).value = formatted;
+
+                alert( 'The expiration date has been automatically updated to ' + formatted.replace( 'T', ' ' ) + ' (' + data.nb_days + ' days from now) based on the selected product.' );
+            } );
+    } );
+</script>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>

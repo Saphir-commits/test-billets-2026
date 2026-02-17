@@ -48,9 +48,11 @@
                             <td><?php echo htmlspecialchars( $subscription['expired_at'] ); ?></td>
                             <td><?php echo htmlspecialchars( $subscription['created_at'] ); ?></td>
                             <td class="actions">
-                                <a href="/subscriptions/<?php echo htmlspecialchars( $subscription['id'] ); ?>/edit" class="btn btn-primary btn-sm">Edit</a>
+                                <?php if ( \App\Helpers\Auth::is_admin() || \App\Models\Subscription::will_renew( (int) $subscription['id'] ) ): ?>
+                                    <a href="/subscriptions/<?php echo htmlspecialchars( $subscription['id'] ); ?>/edit" class="btn btn-primary btn-sm">Edit</a>
+                                <?php endif ?>
 
-                                <?php if ( \App\Models\Subscription::will_renew( (int) $subscription['id'] ) ): ?>
+                                <?php if ( \App\Models\Subscription::will_renew( (int) $subscription['id'] ) ) : ?>
                                     <form method="POST" action="/subscriptions/<?php echo htmlspecialchars( $subscription['id'] ); ?>/cancel" onsubmit="return confirm( 'Are you sure you want to cancel this subscription?' );">
                                         <input type="hidden" name="_csrf_token" value="<?php echo htmlspecialchars( \App\Helpers\Csrf::get_token( 'subscriptions' ) ); ?>">
                                         <button type="submit" class="btn btn-warning btn-sm">Cancel</button>

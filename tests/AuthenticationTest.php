@@ -5,11 +5,12 @@ namespace Tests;
 use App\Models\Role;
 use App\Models\User;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\PasswordHasher\Hasher\NativePasswordHasher;
 
 /**
  * AuthenticationTest : Tests for authentication logic
  *
- * Covers: User::find_by_email(), password hashing (MD5),
+ * Covers: User::find_by_email(), password hashing (bcrypt),
  * and credential validation logic.
  *
  * @since 2026
@@ -114,14 +115,14 @@ class AuthenticationTest extends TestCase
     }
 
     /**
-     * test_user_password_is_stored_as_md5() : Password is stored as MD5 hash, not plain text
+     * test_user_password_is_stored_as_bcrypt() : Password is stored as bcrypt hash, not plain text
      *
      * @since 2026
      * @author Samuelle Langlois
      *
      * @return void
      */
-    public function test_user_password_is_stored_as_md5() : void
+    public function test_user_password_is_stored_as_bcrypt() : void
     {
         /**
          * Variables
@@ -131,7 +132,7 @@ class AuthenticationTest extends TestCase
         $stored_user = User::find( $this->user_id );
 
         $this->assertNotSame( $plain_password, $stored_user['password'], 'Password should not be stored as plain text' );
-        $this->assertSame( md5( $plain_password ), $stored_user['password'], 'Password should be stored as its MD5 hash' );
+        $this->assertTrue( ( new NativePasswordHasher() )->verify( $stored_user['password'], $plain_password ), 'Password should be stored as its bcrypt hash' );
     }
 
     /**
@@ -151,7 +152,7 @@ class AuthenticationTest extends TestCase
 
         $stored_user = User::find( $this->user_id );
 
-        $this->assertTrue( md5( $plain_password ) === $stored_user['password'] );
+        $this->assertTrue( ( new NativePasswordHasher() )->verify( $stored_user['password'], $plain_password ) );
     }
 
     /**
@@ -171,6 +172,6 @@ class AuthenticationTest extends TestCase
 
         $stored_user = User::find( $this->user_id );
 
-        $this->assertFalse( md5( $wrong_password ) === $stored_user['password'] );
+        $this->assertFalse( ( new NativePasswordHasher() )->verify( $stored_user['password'], $wrong_password ) );
     }
 }

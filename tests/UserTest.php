@@ -5,6 +5,7 @@ namespace Tests;
 use App\Models\Role;
 use App\Models\User;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\PasswordHasher\Hasher\NativePasswordHasher;
 
 /**
  * UserTest : Tests for User CRUD operations
@@ -112,7 +113,7 @@ class UserTest extends TestCase
     }
 
     /**
-     * test_update_hashes_new_password() : update() stores the new password as MD5
+     * test_update_hashes_new_password() : update() stores the new password as bcrypt hash
      *
      * @since 2026
      * @author Samuelle Langlois
@@ -130,7 +131,7 @@ class UserTest extends TestCase
 
         $user = User::find( $this->user_id );
 
-        $this->assertSame( md5( $new_password ), $user['password'] );
+        $this->assertTrue( ( new NativePasswordHasher() )->verify( $user['password'], $new_password ) );
     }
 
     /**

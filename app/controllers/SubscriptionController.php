@@ -265,7 +265,6 @@ class SubscriptionController
         $product_id = (int) $this->request->request->get( 'product_id', 0 );
         $price = (float) $this->request->request->get( 'price', 0 );
         $expired_at = trim( $this->request->request->get( 'expired_at', '' ) );
-        $canceled_at = trim( $this->request->request->get( 'canceled_at', '' ) );
 
         /**
          * Validation of CSRF token
@@ -299,7 +298,6 @@ class SubscriptionController
             'product_id'  => $product_id,
             'price'       => $price,
             'expired_at'  => $expired_at,
-            'canceled_at' => ! empty( $canceled_at ) ? $canceled_at : null,
         );
 
         Subscription::update( $id, $data );
@@ -357,6 +355,71 @@ class SubscriptionController
 
         $_SESSION['flash_success'] = 'Subscription canceled successfully.';
         ( new RedirectResponse( $redirect_url ) )->send();
+        exit();
+    }
+
+    /**
+     * product_pricing() : Return pricing data for a product as JSON (GET /products/{id}/pricing)
+     *
+     * @since 2026
+     * @author Samuelle Langlois
+     *
+     * @param int $product_id Product ID from the URL
+     *
+     * @return void
+     */
+    public function product_pricing( int $product_id ) : void
+    {
+        /**
+         * Variables
+         */
+        $product = null;
+        $pricing_option = null;
+
+        /**
+         * Validation of product ID
+         *
+         * SENTINELLE
+         */
+        if ( $product_id <= 0 )
+        {
+            header( 'Content-Type: application/json' );
+            http_response_code( 400 );
+            echo json_encode( array( 'error' => 'Invalid product ID' ) );
+            exit();
+        }
+
+        /**
+         * Retrieve product and its pricing option
+         */
+        $product = Product::find( $product_id );
+
+        if ( $product === null )
+        {
+            header( 'Content-Type: application/json' );
+            http_response_code( 404 );
+            echo json_encode( array( 'error' => 'Product not found' ) );
+            exit();
+        }
+
+        $pricing_option = PricingOption::find( (int) $product['product_pricing_option_id'] );
+
+        if ( $pricing_option === null )
+        {
+            header( 'Content-Type: application/json' );
+            http_response_code( 404 );
+            echo json_encode( array( 'error' => 'Pricing option not found' ) );
+            exit();
+        }
+
+        /**
+         * Succès
+         */
+        header( 'Content-Type: application/json' );
+        echo json_encode( array(
+            'nb_days' => (int) $pricing_option['nb_days'],
+            'price'   => (float) $product['price'],
+        ) );
         exit();
     }
 

@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Helpers\Csrf;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\PasswordHasher\Hasher\NativePasswordHasher;
 
 /**
  * AuthController : Handles authentication (login/logout)
@@ -108,7 +109,7 @@ class AuthController
          */
         $user = User::find_by_email( $email );
 
-        if ( $user === null || $user['password'] !== md5( $password ) )
+        if ( $user === null || ! ( new NativePasswordHasher() )->verify( $user['password'], $password ) )
         {
             $_SESSION['login_error'] = 'Invalid email or password.';
             ( new RedirectResponse( '/login' ) )->send();
