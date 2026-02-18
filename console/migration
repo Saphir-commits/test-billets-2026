@@ -247,8 +247,7 @@ function migrate_up( PDO $pdo, string $db_name ) : void
     " );
     
     /**
-     * Seed admin user
-     * Password: test-billet-2026 (bcrypt hashed)
+     * Seed users
      */
     $password_hash_admin = ( new NativePasswordHasher() )->hash( 'test-billet-2026' ); // bcrypt hash via Symfony
     $password_hash_user = ( new NativePasswordHasher() )->hash( 'user-billet-2026' ); // bcrypt hash via Symfony
